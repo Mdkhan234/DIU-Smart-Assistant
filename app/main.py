@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from app.core.config import settings
 from app.core.logger import logger
 from app.api.upload import router as upload_router
+from app.services.pdf_service import PDFService
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
