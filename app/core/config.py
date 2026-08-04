@@ -2,9 +2,20 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "DIU Smart Assistant"
-    VERSION: str = "1.0.0"
-    DESCRIPTION: str = "AI-powered University Assistant using RAG"
+    PROJECT_NAME: str
+    VERSION: str
+    DESCRIPTION: str
+
+    HOST: str
+    PORT: int
+
+    UPLOAD_DIR: str
+    CHROMA_DB_PATH: str
+
+    MODEL_NAME: str
+    EMBEDDING_MODEL: str
+
+    LOG_LEVEL: str
 
     class Config:
         env_file = ".env"
