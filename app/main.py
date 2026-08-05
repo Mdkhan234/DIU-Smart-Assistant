@@ -7,12 +7,19 @@ from app.api.document import router as document_router
 from app.api.chunks import router as chunk_router
 from app.api.vector import router as vector_router
 from app.api.retriever import router as retriever_router
+from app.api.chat import router as chat_router
+
 
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description=settings.DESCRIPTION,
     version=settings.VERSION,
+)
+
+app.include_router(
+    chat_router,
+    tags=["Chat"]
 )
 
 logger.info("DIU Smart Assistant API Started")
