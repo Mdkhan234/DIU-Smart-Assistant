@@ -15,7 +15,7 @@ class RAGPipeline:
         # Retrieve Top 3 Relevant Chunks
         docs = db.similarity_search(
             question,
-            k=3
+            k=5
         )
 
         # Build Document Context
