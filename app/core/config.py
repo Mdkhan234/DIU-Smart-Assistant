@@ -33,17 +33,39 @@ class Settings(BaseSettings):
 
     UPLOAD_DIR: str = "data/uploads"
 
-    CHROMA_DB_PATH: str = "data/chroma"
+    CHROMA_DB_PATH: str = "data/chroma_db"
 
     # ============================================================
     # AI MODELS
     # ============================================================
 
-    MODEL_NAME: str = "llama3.2:3b"
+    MODEL_NAME: str = "llama3.2:1b"
 
     EMBEDDING_MODEL: str = (
-        "sentence-transformers/all-MiniLM-L6-v2"
+        "BAAI/bge-small-en-v1.5"
     )
+
+    # ============================================================
+    # LLM PROVIDER
+    # ============================================================
+
+    LLM_PROVIDER: str = "ollama"
+
+    # ============================================================
+    # OLLAMA
+    # ============================================================
+
+    OLLAMA_URL: str = (
+        "http://127.0.0.1:11434/api/generate"
+    )
+
+    # ============================================================
+    # OPENAI
+    # ============================================================
+
+    OPENAI_API_KEY: str = ""
+
+    OPENAI_MODEL: str = "gpt-5-mini"
 
     # ============================================================
     # LOGGING
@@ -57,7 +79,7 @@ class Settings(BaseSettings):
 
     TOP_K: int = 5
 
-    RELEVANCE_THRESHOLD: float = 0.85
+    RELEVANCE_THRESHOLD: float = 0.65
 
     MAX_CONTEXT_CHARS: int = 6000
 

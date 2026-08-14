@@ -1,6 +1,8 @@
 import re
 import requests
 
+from openai import OpenAI
+
 from app.core.config import settings
 
 
@@ -11,13 +13,29 @@ class LLM:
     # ============================================================
 
     OLLAMA_URL = (
-        "http://127.0.0.1:11434/api/generate"
+        settings.OLLAMA_URL
+        or "http://127.0.0.1:11434/api/generate"
     )
 
     MODEL_NAME = (
         settings.MODEL_NAME
         or "llama3.2:1b"
     )
+
+    OPENAI_MODEL = (
+        settings.OPENAI_MODEL
+        or "gpt-5-mini"
+    )
+
+    OPENAI_API_KEY = (
+        settings.OPENAI_API_KEY
+        or ""
+    )
+
+    PROVIDER = (
+        settings.LLM_PROVIDER
+        or "ollama"
+    ).lower().strip()
 
     TIMEOUT = 120
 
@@ -31,9 +49,7 @@ class LLM:
         context: str
     ) -> str | None:
 
-        question_lower = (
-            question.lower().strip()
-        )
+        question_lower = question.lower().strip()
 
         admission_keywords = [
             "admission test",
@@ -50,10 +66,6 @@ class LLM:
             for keyword in admission_keywords
         ):
             return None
-
-        # --------------------------------------------------------
-        # Faculty
-        # --------------------------------------------------------
 
         faculty_patterns = {
 
@@ -94,13 +106,8 @@ class LLM:
                 pattern in question_lower
                 for pattern in patterns
             ):
-
                 requested_faculty = faculty
                 break
-
-        # --------------------------------------------------------
-        # Semester
-        # --------------------------------------------------------
 
         requested_semester = None
 
@@ -109,7 +116,6 @@ class LLM:
             or "bisemester" in question_lower
             or "bi-semester" in question_lower
         ):
-
             requested_semester = "bi"
 
         elif (
@@ -117,16 +123,10 @@ class LLM:
             or "trimester" in question_lower
             or "tri-semester" in question_lower
         ):
-
             requested_semester = "tri"
 
-        # --------------------------------------------------------
-        # Normalize context
-        # --------------------------------------------------------
-
         normalized_context = (
-            context
-            .replace("\xa0", " ")
+            context.replace("\xa0", " ")
         )
 
         lines = [
@@ -134,10 +134,6 @@ class LLM:
             for line in normalized_context.splitlines()
             if line.strip()
         ]
-
-        # --------------------------------------------------------
-        # Search schedule
-        # --------------------------------------------------------
 
         for line in lines:
 
@@ -200,10 +196,6 @@ class LLM:
                     in line_lower
                 )
 
-            # ----------------------------------------------------
-            # Semester
-            # ----------------------------------------------------
-
             if requested_semester == "bi":
 
                 semester_match = (
@@ -220,10 +212,6 @@ class LLM:
                     or "tri-semester" in line_lower
                 )
 
-            # ----------------------------------------------------
-            # Match
-            # ----------------------------------------------------
-
             if faculty_match and semester_match:
 
                 time_match = re.search(
@@ -236,13 +224,8 @@ class LLM:
 
                 if time_match:
 
-                    start_time = (
-                        time_match.group(1)
-                    )
-
-                    end_time = (
-                        time_match.group(2)
-                    )
+                    start_time = time_match.group(1)
+                    end_time = time_match.group(2)
 
                     faculty_name = (
                         requested_faculty
@@ -297,10 +280,7 @@ class LLM:
             if not match:
                 continue
 
-            program = (
-                match.group(1)
-                .strip()
-            )
+            program = match.group(1).strip()
 
             if program:
                 programs.append(program)
@@ -309,8 +289,7 @@ class LLM:
             return None
 
         return (
-            "The programs available at Daffodil "
-            "International University are:\n\n"
+            "The programs available at DIU are:\n\n"
             + "\n".join(
                 f"{index}. {program}"
                 for index, program in enumerate(
@@ -321,134 +300,62 @@ class LLM:
         )
 
     # ============================================================
-    # GENERAL GENERATION
+    # COMMON PROMPT
     # ============================================================
 
     @staticmethod
-    def generate(
+    def build_prompt(
         question: str,
         context: str
     ) -> str:
 
-        # --------------------------------------------------------
-        # Validate question
-        # --------------------------------------------------------
+        return f"""
+You are DIU Smart Assistant, an AI assistant for
+Daffodil International University (DIU).
 
-        if not question or not question.strip():
-
-            return (
-                "Please provide a question."
-            )
-
-        # --------------------------------------------------------
-        # Validate context
-        # --------------------------------------------------------
-
-        if not context or not context.strip():
-
-            return (
-                "I could not find relevant information "
-                "in the available DIU documents."
-            )
-
-        # --------------------------------------------------------
-        # Direct admission schedule extraction
-        # --------------------------------------------------------
-
-        direct_schedule_answer = (
-            LLM.extract_admission_schedule(
-                question=question,
-                context=context
-            )
-        )
-
-        if direct_schedule_answer:
-
-            return direct_schedule_answer
-
-        # ========================================================
-        # GENERAL RAG PROMPT
-        # ========================================================
-
-        prompt = f"""
-You are DIU Smart Assistant, an AI assistant
-for Daffodil International University (DIU).
-
-Your job is to answer the user's question using
-ONLY the information contained in the provided
+Answer the user's question using ONLY the
 DIU DOCUMENT CONTEXT.
 
-IMPORTANT:
+STRICT RULES:
 
-The user expects a useful, complete answer,
-not just a keyword or a one-line fragment.
+1. Use only the provided document context.
 
-Follow these rules carefully:
+2. Never use outside knowledge.
 
-1. Use ONLY the provided DIU DOCUMENT CONTEXT.
+3. Never invent information.
 
-2. Do NOT use outside knowledge.
+4. If the requested answer is present in the context,
+   answer it directly.
 
-3. Do NOT invent facts.
+5. If multiple similar values exist, select the one
+   matching the user's exact faculty, program,
+   semester, category, or topic.
 
-4. Answer the actual question directly.
+6. Do not combine unrelated information.
 
-5. If the context contains several relevant facts,
-   include the important relevant facts.
+7. If the answer is not present in the context,
+   clearly say that the information is not available
+   in the provided DIU documents.
 
-6. For a normal factual question, give approximately
-   2 to 5 clear sentences when the context supports it.
+8. Do not mention internal technical details.
 
-7. If the context contains a definition or description,
-   explain the definition clearly instead of returning
-   only the institution's name.
+9. Do not mention:
+   - embeddings
+   - ChromaDB
+   - vector database
+   - retrieval
+   - RAG
+   - similarity scores
 
-8. If the context contains a list, preserve the important
-   items in the list.
+10. Preserve important items when the context contains
+    a list.
 
-9. If the user asks "what is", "what are", "tell me about",
-   or "explain", provide a short explanatory answer.
+11. For factual questions, use the exact value from
+    the context.
 
-10. If the user asks for a specific value such as a date,
-    time, fee, deadline, requirement, or eligibility,
-    give the exact value from the context.
+12. Give a clear, natural and useful answer.
 
-11. If multiple similar values exist, choose the value
-    that matches the user's exact question.
-
-12. Do not combine unrelated information.
-
-13. If the answer is not available in the context,
-    say exactly:
-
-    "I could not find this information in the
-    available DIU documents."
-
-14. Never mention internal technical details.
-
-Do NOT mention:
-
-- RAG
-- retrieval
-- embeddings
-- ChromaDB
-- vector database
-- similarity score
-- context retrieval
-- prompt
-- model
-- Ollama
-
-15. Do not start the answer with unnecessary phrases such as:
-
-"According to the context..."
-"Based on the documents..."
-"The context says..."
-
-16. Be concise but informative.
-
-17. Never answer with only a name when the question
-    asks for an explanation or description.
+13. Do not unnecessarily make the answer extremely short.
 
 USER QUESTION:
 {question}
@@ -459,27 +366,21 @@ DIU DOCUMENT CONTEXT:
 FINAL ANSWER:
 """
 
-        # ========================================================
-        # OLLAMA REQUEST
-        # ========================================================
+    # ============================================================
+    # OLLAMA GENERATION
+    # ============================================================
+
+    @staticmethod
+    def generate_with_ollama(
+        prompt: str
+    ) -> str:
 
         payload = {
             "model": LLM.MODEL_NAME,
-
             "prompt": prompt,
-
             "stream": False,
-
             "options": {
-
-                # Deterministic answers
-                "temperature": 0.0,
-
-                # Allow enough answer tokens
-                "num_predict": 400,
-
-                # Better context processing
-                "num_ctx": 4096,
+                "temperature": 0.0
             }
         }
 
@@ -496,27 +397,9 @@ FINAL ANSWER:
             data = response.json()
 
             answer = (
-                data.get(
-                    "response",
-                    ""
-                )
+                data.get("response", "")
                 or ""
             ).strip()
-
-            # ----------------------------------------------------
-            # Clean common unwanted prefixes
-            # ----------------------------------------------------
-
-            answer = re.sub(
-                r"^(FINAL ANSWER:\s*)+",
-                "",
-                answer,
-                flags=re.IGNORECASE
-            ).strip()
-
-            # ----------------------------------------------------
-            # Empty response
-            # ----------------------------------------------------
 
             if not answer:
 
@@ -526,10 +409,6 @@ FINAL ANSWER:
                 )
 
             return answer
-
-        # ========================================================
-        # ERROR HANDLING
-        # ========================================================
 
         except requests.exceptions.ConnectionError:
 
@@ -553,13 +432,13 @@ FINAL ANSWER:
             )
 
             return (
-                "Unable to connect to the AI model."
+                "Unable to connect to the Ollama model."
             )
 
         except Exception as error:
 
             print(
-                "[LLM] Unexpected error:",
+                "[LLM] Ollama unexpected error:",
                 error
             )
 
@@ -567,3 +446,120 @@ FINAL ANSWER:
                 "An error occurred while generating "
                 "the answer."
             )
+
+    # ============================================================
+    # OPENAI GENERATION
+    # ============================================================
+
+    @staticmethod
+    def generate_with_openai(
+        prompt: str
+    ) -> str:
+
+        if not LLM.OPENAI_API_KEY:
+
+            return (
+                "OpenAI API key is not configured."
+            )
+
+        try:
+
+            client = OpenAI(
+                api_key=LLM.OPENAI_API_KEY
+            )
+
+            response = client.responses.create(
+                model=LLM.OPENAI_MODEL,
+                input=prompt,
+                temperature=0
+            )
+
+            answer = (
+                getattr(
+                    response,
+                    "output_text",
+                    ""
+                )
+                or ""
+            ).strip()
+
+            if not answer:
+
+                return (
+                    "I could not generate an answer "
+                    "from the available DIU documents."
+                )
+
+            return answer
+
+        except Exception as error:
+
+            print(
+                "[LLM] OpenAI request error:",
+                error
+            )
+
+            return (
+                "Unable to connect to the OpenAI model."
+            )
+
+    # ============================================================
+    # GENERAL GENERATION
+    # ============================================================
+
+    @staticmethod
+    def generate(
+        question: str,
+        context: str
+    ) -> str:
+
+        if not question or not question.strip():
+
+            return "Please provide a question."
+
+        if not context or not context.strip():
+
+            return (
+                "I could not find relevant information "
+                "in the available DIU documents."
+            )
+
+        # --------------------------------------------------------
+        # Direct admission schedule extraction
+        # --------------------------------------------------------
+
+        direct_schedule_answer = (
+            LLM.extract_admission_schedule(
+                question=question,
+                context=context
+            )
+        )
+
+        if direct_schedule_answer:
+
+            return direct_schedule_answer
+
+        # --------------------------------------------------------
+        # Build common RAG prompt
+        # --------------------------------------------------------
+
+        prompt = LLM.build_prompt(
+            question=question,
+            context=context
+        )
+
+        # ========================================================
+        # PROVIDER SWITCH
+        # ========================================================
+
+        if LLM.PROVIDER == "openai":
+
+            return LLM.generate_with_openai(
+                prompt
+            )
+
+        # Default provider = Ollama
+
+        return LLM.generate_with_ollama(
+            prompt
+        )
