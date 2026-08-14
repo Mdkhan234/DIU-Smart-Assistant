@@ -41,9 +41,7 @@ class Settings(BaseSettings):
 
     MODEL_NAME: str = "llama3.2:1b"
 
-    EMBEDDING_MODEL: str = (
-        "BAAI/bge-small-en-v1.5"
-    )
+    EMBEDDING_MODEL: str = "text-embedding-3-small"
 
     # ============================================================
     # LLM PROVIDER
@@ -52,7 +50,7 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "ollama"
 
     # ============================================================
-    # OLLAMA
+    # OLLAMA - LOCAL DEVELOPMENT
     # ============================================================
 
     OLLAMA_URL: str = (
@@ -60,12 +58,16 @@ class Settings(BaseSettings):
     )
 
     # ============================================================
-    # OPENAI
+    # OPENAI - PRODUCTION
     # ============================================================
 
     OPENAI_API_KEY: str = ""
 
     OPENAI_MODEL: str = "gpt-5-mini"
+
+    OPENAI_EMBEDDING_MODEL: str = (
+        "text-embedding-3-small"
+    )
 
     # ============================================================
     # LOGGING
