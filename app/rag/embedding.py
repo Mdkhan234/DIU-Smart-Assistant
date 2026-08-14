@@ -1,25 +1,61 @@
-from langchain_openai import OpenAIEmbeddings
-
-from app.core.config import settings
+from sentence_transformers import SentenceTransformer
 
 
 class EmbeddingModel:
 
-    _embeddings = None
+    _model = None
 
-    @staticmethod
-    def get_embeddings():
+    # Lightweight and free local embedding model.
+    MODEL_NAME = "all-MiniLM-L6-v2"
 
-        if EmbeddingModel._embeddings is None:
+    @classmethod
+    def _initialize(cls):
 
-            if not settings.OPENAI_API_KEY:
-                raise RuntimeError(
-                    "OPENAI_API_KEY is not configured."
-                )
+        if cls._model is None:
 
-            EmbeddingModel._embeddings = OpenAIEmbeddings(
-                model=settings.OPENAI_EMBEDDING_MODEL,
-                api_key=settings.OPENAI_API_KEY,
+            print(
+                f"Loading local embedding model: {cls.MODEL_NAME}"
             )
 
-        return EmbeddingModel._embeddings
+            cls._model = SentenceTransformer(
+                cls.MODEL_NAME
+            )
+
+            print("Local embedding model: OK")
+
+    @classmethod
+    def get_embeddings(cls):
+
+        cls._initialize()
+
+        return cls
+
+    @classmethod
+    def embed_documents(cls, texts):
+
+        cls._initialize()
+
+        if not texts:
+            return []
+
+        embeddings = cls._model.encode(
+            texts,
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+            show_progress_bar=True
+        )
+
+        return embeddings.tolist()
+
+    @classmethod
+    def embed_query(cls, text):
+
+        cls._initialize()
+
+        embedding = cls._model.encode(
+            text,
+            convert_to_numpy=True,
+            normalize_embeddings=True
+        )
+
+        return embedding.tolist()

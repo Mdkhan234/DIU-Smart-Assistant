@@ -1,177 +1,64 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from app.rag.retriever import Retriever
-from app.rag.context_builder import ContextBuilder
-from app.rag.llm import LLM
+from app.rag.rag_chain import RAGChain
 
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/chat",
+    tags=["Chat"]
+)
 
-
-# ============================================================
-# REQUEST MODEL
-# ============================================================
 
 class ChatRequest(BaseModel):
-
-    session_id: str = Field(
-        default="default",
-        min_length=1
-    )
-
     question: str = Field(
         ...,
-        min_length=1
+        min_length=1,
+        description="Question about Daffodil International University"
     )
-
-    k: int = Field(
+    top_k: int = Field(
         default=5,
         ge=1,
-        le=100
+        le=10,
+        description="Number of relevant chunks to retrieve"
     )
 
 
-# ============================================================
-# CHAT ENDPOINT
-# ============================================================
+class ChatResponse(BaseModel):
+    answer: str
+    sources: list
+    retrieved_chunks: int
 
-@router.post("/chat")
+
+@router.post(
+    "",
+    response_model=ChatResponse
+)
 def chat(request: ChatRequest):
 
-    question = request.question.strip()
-    k = request.k
+    try:
 
-    # ========================================================
-    # 1. DETECT INTENT
-    # ========================================================
-
-    intents = Retriever.detect_intent(question)
-
-    # ========================================================
-    # 2. PROGRAM LIST QUERY
-    # ========================================================
-
-    if intents.get("programs", False):
-
-        programs = Retriever.extract_program_names()
-
-        # ----------------------------------------------------
-        # Extraction failed
-        # ----------------------------------------------------
-
-        if not programs:
-
-            return {
-                "success": True,
-                "session_id": request.session_id,
-                "query": question,
-                "answer": (
-                    "I could not extract the DIU program list "
-                    "from the available Programs document."
-                ),
-                "sources": []
-            }
-
-        # ----------------------------------------------------
-        # Build authoritative program context
-        # ----------------------------------------------------
-
-        context = (
-            ContextBuilder.build_program_list_context(
-                programs
-            )
+        result = RAGChain.answer(
+            question=request.question,
+            k=request.top_k
         )
 
-        # ----------------------------------------------------
-        # Generate program list
-        # ----------------------------------------------------
-
-        answer = (
-            LLM.extract_program_list_answer(
-                question=question,
-                context=context
-            )
+        return ChatResponse(
+            answer=result["answer"],
+            sources=result.get("sources", []),
+            retrieved_chunks=result.get("retrieved_chunks", 0)
         )
 
-        if not answer:
+    except ValueError as e:
 
-            answer = (
-                "The DIU program list could not be generated."
-            )
-
-        # ----------------------------------------------------
-        # Program document sources
-        # ----------------------------------------------------
-
-        program_documents = (
-            Retriever.get_program_documents()
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
         )
 
-        sources = (
-            ContextBuilder.build_sources(
-                program_documents
-            )
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"RAG processing failed: {str(e)}"
         )
-
-        return {
-            "success": True,
-            "session_id": request.session_id,
-            "query": question,
-            "answer": answer,
-            "sources": sources
-        }
-
-    # ========================================================
-    # 3. NORMAL RAG SEARCH
-    # ========================================================
-
-    results = (
-        Retriever.search_relevant(
-            query=question,
-            k=k
-        )
-    )
-
-    # ========================================================
-    # 4. BUILD CONTEXT
-    # ========================================================
-
-    context = (
-        ContextBuilder.build(
-            results
-        )
-    )
-
-    # ========================================================
-    # 5. GENERATE ANSWER
-    # ========================================================
-
-    answer = (
-        LLM.generate(
-            question=question,
-            context=context
-        )
-    )
-
-    # ========================================================
-    # 6. BUILD SOURCES
-    # ========================================================
-
-    sources = (
-        ContextBuilder.build_sources(
-            results
-        )
-    )
-
-    # ========================================================
-    # 7. FINAL RESPONSE
-    # ========================================================
-
-    return {
-        "success": True,
-        "session_id": request.session_id,
-        "query": question,
-        "answer": answer,
-        "sources": sources
-    }

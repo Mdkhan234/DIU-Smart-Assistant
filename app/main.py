@@ -44,46 +44,39 @@ app.add_middleware(
 # API Routers
 # ============================================================
 
-# Chat
 app.include_router(
     chat_router,
-    tags=["Chat"]
+    tags=["Chat"],
 )
 
-# Upload
 app.include_router(
     upload_router,
-    tags=["Upload"]
+    tags=["Upload"],
 )
 
-# Document
 app.include_router(
     document_router,
-    tags=["Document"]
+    tags=["Document"],
 )
 
-# Chunks
 app.include_router(
     chunk_router,
-    tags=["Chunks"]
+    tags=["Chunks"],
 )
 
-# Vector Database
 app.include_router(
     vector_router,
-    tags=["Vector Database"]
+    tags=["Vector Database"],
 )
 
-# Retriever
 app.include_router(
     retriever_router,
-    tags=["Retriever"]
+    tags=["Retriever"],
 )
 
-# Admin
 app.include_router(
     admin_router,
-    tags=["Admin"]
+    tags=["Admin"],
 )
 
 
@@ -91,9 +84,7 @@ app.include_router(
 # Startup Log
 # ============================================================
 
-logger.info(
-    "DIU Smart Assistant API Started"
-)
+logger.info("DIU Smart Assistant API Started")
 
 
 # ============================================================
@@ -102,7 +93,6 @@ logger.info(
 
 @app.get("/")
 def root():
-
     return {
         "message": f"Welcome to {settings.PROJECT_NAME}"
     }
@@ -114,7 +104,6 @@ def root():
 
 @app.get("/health")
 def health():
-
     return {
         "status": "healthy"
     }

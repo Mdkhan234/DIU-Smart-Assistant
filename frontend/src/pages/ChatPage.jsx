@@ -2,12 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import api from "../api";
 
-function createSessionId() {
-  return `web-${Date.now()}-${Math.random()
-    .toString(36)
-    .substring(2, 9)}`;
-}
-
 function ChatPage() {
   const [messages, setMessages] = useState([
     {
@@ -23,8 +17,6 @@ function ChatPage() {
 
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
-
-  const sessionId = useRef(createSessionId());
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
@@ -66,8 +58,8 @@ function ChatPage() {
 
     try {
       const response = await api.post("/chat", {
-        session_id: sessionId.current,
         question,
+        top_k: 5,
       });
 
       const data = response.data;
@@ -85,11 +77,15 @@ function ChatPage() {
     } catch (error) {
       console.error("Chat error:", error);
 
+      const backendMessage =
+        error.response?.data?.detail;
+
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
           content:
+            backendMessage ||
             "Sorry, I couldn't connect to the DIU Smart Assistant server. Please make sure the FastAPI backend is running.",
           sources: [],
           error: true,
@@ -108,8 +104,6 @@ function ChatPage() {
   };
 
   const clearChat = () => {
-    sessionId.current = createSessionId();
-
     setMessages([
       {
         role: "assistant",
@@ -167,31 +161,37 @@ function ChatPage() {
               <div
                 key={index}
                 className={`chat-message-row ${
-                  isUser ? "user-message" : "assistant-message"
+                  isUser
+                    ? "user-message"
+                    : "assistant-message"
                 }`}
               >
 
-                {/* Avatar */}
                 <div
                   className={`chat-avatar ${
-                    isUser ? "user-avatar" : "assistant-avatar"
+                    isUser
+                      ? "user-avatar"
+                      : "assistant-avatar"
                   }`}
                 >
                   {isUser ? "U" : "AI"}
                 </div>
 
 
-                {/* Message */}
                 <div className="chat-message-content">
 
                   <div className="chat-message-name">
-                    {isUser ? "You" : "DIU Assistant"}
+                    {isUser
+                      ? "You"
+                      : "DIU Assistant"}
                   </div>
 
 
                   <div
                     className={`chat-bubble ${
-                      message.error ? "chat-error" : ""
+                      message.error
+                        ? "chat-error"
+                        : ""
                     }`}
                   >
 
@@ -231,36 +231,49 @@ function ChatPage() {
                         <div className="sources-list">
 
                           {message.sources.map(
-                            (source, sourceIndex) => (
-                              <div
-                                className="source-card"
-                                key={sourceIndex}
-                              >
+                            (source, sourceIndex) => {
 
-                                <div className="source-document-icon">
-                                  PDF
-                                </div>
+                              const filename =
+                                source.file ||
+                                source.filename ||
+                                "Unknown document";
 
-                                <div className="source-details">
+                              const page =
+                                source.page;
 
-                                  <div className="source-filename">
-                                    {String(
-                                      source.filename || ""
-                                    ).replace(
-                                      /^data[\\/]+uploads[\\/]+/,
-                                      ""
-                                    )}
+                              return (
+                                <div
+                                  className="source-card"
+                                  key={sourceIndex}
+                                >
+
+                                  <div className="source-document-icon">
+                                    PDF
                                   </div>
 
-                                  <div className="source-meta">
-                                    Page{" "}
-                                    {Number(source.page || 0) + 1}
+                                  <div className="source-details">
+
+                                    <div className="source-filename">
+                                      {String(
+                                        filename
+                                      ).replace(
+                                        /^data[\\/]+uploads[\\/]+/,
+                                        ""
+                                      )}
+                                    </div>
+
+                                    {page !== null &&
+                                      page !== undefined && (
+                                        <div className="source-meta">
+                                          Page {page}
+                                        </div>
+                                      )}
+
                                   </div>
 
                                 </div>
-
-                              </div>
-                            )
+                              );
+                            }
                           )}
 
                         </div>

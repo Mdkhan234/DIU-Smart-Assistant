@@ -36,38 +36,28 @@ class Settings(BaseSettings):
     CHROMA_DB_PATH: str = "data/chroma_db"
 
     # ============================================================
-    # AI MODELS
-    # ============================================================
-
-    MODEL_NAME: str = "llama3.2:1b"
-
-    EMBEDDING_MODEL: str = "text-embedding-3-small"
-
-    # ============================================================
     # LLM PROVIDER
     # ============================================================
 
-    LLM_PROVIDER: str = "ollama"
+    LLM_PROVIDER: str = "gemini"
 
     # ============================================================
-    # OLLAMA - LOCAL DEVELOPMENT
+    # GEMINI
     # ============================================================
 
-    OLLAMA_URL: str = (
-        "http://127.0.0.1:11434/api/generate"
-    )
+    GEMINI_API_KEY: str = ""
+
+    GEMINI_MODEL: str = "gemini-3.5-flash"
+
+    GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-2"
 
     # ============================================================
-    # OPENAI - PRODUCTION
+    # BACKWARD COMPATIBILITY
     # ============================================================
 
-    OPENAI_API_KEY: str = ""
+    MODEL_NAME: str = "gemini-3.5-flash"
 
-    OPENAI_MODEL: str = "gpt-5-mini"
-
-    OPENAI_EMBEDDING_MODEL: str = (
-        "text-embedding-3-small"
-    )
+    EMBEDDING_MODEL: str = "gemini-embedding-2"
 
     # ============================================================
     # LOGGING

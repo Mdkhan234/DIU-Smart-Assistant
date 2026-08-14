@@ -26,7 +26,8 @@ chroma_db/
 # macOS
 .DS_Store
 # Uploaded documents
-data/uploads/
+# Data
+data/
 
 # Frontend
 frontend/node_modules/

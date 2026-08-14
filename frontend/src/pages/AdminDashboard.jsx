@@ -12,10 +12,12 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [rebuilding, setRebuilding] = useState(false);
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   const loadStats = async () => {
     try {
       setLoading(true);
+      setError("");
 
       const response = await api.get("/admin/documents");
 
@@ -24,10 +26,9 @@ function AdminDashboard() {
         total_pages: response.data.total_pages || 0,
         total_chunks: response.data.total_chunks || 0,
       });
-
-    } catch (error) {
-      console.error(error);
-      setMessage("Unable to load dashboard data.");
+    } catch (err) {
+      console.error("Dashboard error:", err);
+      setError("Unable to load dashboard data.");
     } finally {
       setLoading(false);
     }
@@ -38,27 +39,40 @@ function AdminDashboard() {
   }, []);
 
   const rebuildDatabase = async () => {
+    const confirmed = window.confirm(
+      "Rebuild the knowledge base?\n\nAll uploaded PDFs will be processed again and the vector database will be recreated."
+    );
+
+    if (!confirmed || rebuilding) return;
+
     try {
       setRebuilding(true);
       setMessage("");
+      setError("");
 
       const response = await api.post(
         "/admin/rebuild-vector-db"
       );
 
       if (response.data.success) {
+        const details = response.data.details || {};
+
         setMessage(
-          `Knowledge base rebuilt successfully. ${response.data.details.chunks} chunks indexed.`
+          `Knowledge base rebuilt successfully. ${details.chunks || 0} chunks indexed.`
         );
 
         await loadStats();
+      } else {
+        setError(
+          response.data.message ||
+            "Knowledge base rebuild failed."
+        );
       }
+    } catch (err) {
+      console.error("Rebuild error:", err);
 
-    } catch (error) {
-      console.error(error);
-
-      setMessage(
-        error.response?.data?.detail ||
+      setError(
+        err.response?.data?.detail ||
           "Failed to rebuild vector database."
       );
     } finally {
@@ -66,10 +80,31 @@ function AdminDashboard() {
     }
   };
 
+  const statCards = [
+    {
+      label: "Documents",
+      value: stats.total_documents,
+      icon: "DOC",
+      description: "Uploaded PDF files",
+    },
+    {
+      label: "Pages",
+      value: stats.total_pages,
+      icon: "PDF",
+      description: "Total indexed pages",
+    },
+    {
+      label: "Chunks",
+      value: stats.total_chunks,
+      icon: "DB",
+      description: "Searchable knowledge chunks",
+    },
+  ];
+
   return (
     <div className="admin-page">
 
-      {/* Header */}
+      {/* HEADER */}
       <header className="admin-header">
 
         <div className="admin-brand">
@@ -89,105 +124,43 @@ function AdminDashboard() {
           to="/"
           className="admin-back-button"
         >
-          ← User Chat
+          ← Back to Chat
         </Link>
 
       </header>
 
 
-      {/* Main */}
-      <main className="admin-content">
+      {/* MAIN */}
+      <main className="admin-main">
 
-        <div className="admin-title-section">
+        {/* HERO */}
+        <section className="admin-hero">
 
           <div>
             <span className="admin-eyebrow">
               ADMINISTRATION
             </span>
 
-            <h2>Dashboard</h2>
+            <h2>Knowledge Base Dashboard</h2>
 
             <p>
-              Manage the DIU Smart Assistant knowledge base.
+              Manage DIU documents and maintain the
+              university knowledge base used by the
+              AI assistant.
             </p>
           </div>
 
-          <button
-            className="rebuild-button"
-            onClick={rebuildDatabase}
-            disabled={rebuilding}
-          >
-            {rebuilding
-              ? "Rebuilding..."
-              : "↻ Rebuild Knowledge Base"}
-          </button>
+          <div className="admin-status">
 
-        </div>
-
-
-        {/* Stats */}
-
-        <section className="stats-grid">
-
-          <div className="stat-card">
-
-            <div className="stat-icon">
-              📄
-            </div>
+            <span className="status-dot"></span>
 
             <div>
-              <span>Total Documents</span>
-              <strong>
-                {loading ? "—" : stats.total_documents}
-              </strong>
-            </div>
-
-          </div>
-
-
-          <div className="stat-card">
-
-            <div className="stat-icon">
-              📑
-            </div>
-
-            <div>
-              <span>Total Pages</span>
-              <strong>
-                {loading ? "—" : stats.total_pages}
-              </strong>
-            </div>
-
-          </div>
-
-
-          <div className="stat-card">
-
-            <div className="stat-icon">
-              🧩
-            </div>
-
-            <div>
-              <span>Total Chunks</span>
-              <strong>
-                {loading ? "—" : stats.total_chunks}
-              </strong>
-            </div>
-
-          </div>
-
-
-          <div className="stat-card">
-
-            <div className="stat-icon success">
-              ✓
-            </div>
-
-            <div>
-              <span>Knowledge Base</span>
-              <strong className="indexed">
-                Ready
-              </strong>
+              <strong>Knowledge Base</strong>
+              <span>
+                {loading
+                  ? "Checking..."
+                  : "System available"}
+              </span>
             </div>
 
           </div>
@@ -195,58 +168,200 @@ function AdminDashboard() {
         </section>
 
 
-        {/* Message */}
-
+        {/* MESSAGE */}
         {message && (
-          <div className="admin-notification">
-            {message}
+          <div className="admin-alert admin-alert-success">
+            <span>✓</span>
+            <span>{message}</span>
+          </div>
+        )}
+
+        {error && (
+          <div className="admin-alert admin-alert-error">
+            <span>!</span>
+            <span>{error}</span>
           </div>
         )}
 
 
-        {/* Management */}
+        {/* STATISTICS */}
+        <section className="admin-stats">
 
-        <section className="admin-actions">
+          {statCards.map((card) => (
+            <div
+              className="admin-stat-card"
+              key={card.label}
+            >
 
-          <Link
-            to="/admin/documents"
-            className="admin-action-card"
-          >
+              <div className="admin-stat-top">
 
-            <div className="action-icon">
-              📚
+                <div className="admin-stat-icon">
+                  {card.icon}
+                </div>
+
+              </div>
+
+              <div className="admin-stat-value">
+
+                {loading
+                  ? "—"
+                  : card.value.toLocaleString()}
+
+              </div>
+
+              <div className="admin-stat-label">
+                {card.label}
+              </div>
+
+              <div className="admin-stat-description">
+                {card.description}
+              </div>
+
             </div>
+          ))}
+
+        </section>
+
+
+        {/* QUICK ACTIONS */}
+        <section className="admin-section">
+
+          <div className="admin-section-header">
 
             <div>
-              <h3>Documents</h3>
+              <h3>Quick Actions</h3>
+
               <p>
-                Upload, view and delete university documents.
+                Manage documents and update the
+                knowledge base.
               </p>
             </div>
 
-            <span className="action-arrow">
-              →
-            </span>
-
-          </Link>
+          </div>
 
 
-          <div className="admin-action-card">
+          <div className="admin-actions">
 
-            <div className="action-icon">
-              🧠
-            </div>
+            <Link
+              to="/admin/documents"
+              className="admin-action-card"
+            >
+
+              <div className="admin-action-icon">
+                DOC
+              </div>
+
+              <div className="admin-action-content">
+                <strong>Manage Documents</strong>
+
+                <span>
+                  Upload, view and delete PDF documents.
+                </span>
+              </div>
+
+              <span className="admin-action-arrow">
+                →
+              </span>
+
+            </Link>
+
+
+            <button
+              className="admin-action-card admin-action-button"
+              onClick={rebuildDatabase}
+              disabled={rebuilding}
+            >
+
+              <div className="admin-action-icon">
+                DB
+              </div>
+
+              <div className="admin-action-content">
+                <strong>
+                  {rebuilding
+                    ? "Rebuilding..."
+                    : "Rebuild Knowledge Base"}
+                </strong>
+
+                <span>
+                  Re-process all uploaded PDFs and
+                  recreate the vector database.
+                </span>
+              </div>
+
+              <span className="admin-action-arrow">
+                {rebuilding ? "..." : "→"}
+              </span>
+
+            </button>
+
+
+            <Link
+              to="/"
+              className="admin-action-card"
+            >
+
+              <div className="admin-action-icon">
+                AI
+              </div>
+
+              <div className="admin-action-content">
+                <strong>Open AI Assistant</strong>
+
+                <span>
+                  Test the RAG chatbot with the current
+                  knowledge base.
+                </span>
+              </div>
+
+              <span className="admin-action-arrow">
+                →
+              </span>
+
+            </Link>
+
+          </div>
+
+        </section>
+
+
+        {/* SYSTEM INFORMATION */}
+        <section className="admin-section">
+
+          <div className="admin-section-header">
 
             <div>
-              <h3>Knowledge Base</h3>
+              <h3>System Information</h3>
+
               <p>
-                Rebuild the vector database after document changes.
+                Current DIU Smart Assistant configuration.
               </p>
             </div>
 
-            <span className="action-status">
-              Active
-            </span>
+          </div>
+
+
+          <div className="admin-info-grid">
+
+            <div className="admin-info-item">
+              <span>AI Pipeline</span>
+              <strong>RAG</strong>
+            </div>
+
+            <div className="admin-info-item">
+              <span>Vector Database</span>
+              <strong>ChromaDB</strong>
+            </div>
+
+            <div className="admin-info-item">
+              <span>Embeddings</span>
+              <strong>all-MiniLM-L6-v2</strong>
+            </div>
+
+            <div className="admin-info-item">
+              <span>LLM</span>
+              <strong>Gemini</strong>
+            </div>
 
           </div>
 

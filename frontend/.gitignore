@@ -25,7 +25,8 @@ dist-ssr
 
 
 # Uploaded documents
-data/uploads/
+# Data
+data/
 
 # Frontend
 frontend/node_modules/
