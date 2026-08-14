@@ -1,20 +1,27 @@
 from langchain_huggingface import HuggingFaceEmbeddings
+
 from app.core.config import settings
 
 
 class EmbeddingModel:
 
+    _embeddings = None
+
     @staticmethod
     def get_embeddings():
 
-        embeddings = HuggingFaceEmbeddings(
-            model_name=settings.EMBEDDING_MODEL,
-            model_kwargs={
-                "device": "cpu"
-            },
-            encode_kwargs={
-                "normalize_embeddings": True
-            }
-        )
+        if EmbeddingModel._embeddings is None:
 
-        return embeddings
+            EmbeddingModel._embeddings = HuggingFaceEmbeddings(
+                model_name=settings.EMBEDDING_MODEL,
+
+                model_kwargs={
+                    "device": "cpu"
+                },
+
+                encode_kwargs={
+                    "normalize_embeddings": True
+                }
+            )
+
+        return EmbeddingModel._embeddings

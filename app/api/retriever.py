@@ -1,32 +1,90 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
-from app.rag.vector_store import VectorStore
+from app.rag.retriever import Retriever
+
 
 router = APIRouter()
 
 
 @router.get("/search")
-def search(query: str):
+def search(
+    query: str = Query(
+        ...,
+        min_length=1
+    ),
+    k: int = Query(
+        5,
+        ge=1,
+        le=100
+    )
+):
 
-    db = VectorStore.load()
+    # ============================================================
+    # RETRIEVE
+    # ============================================================
 
-    results = db.similarity_search(
-        query=query,
-        k=3
+    results = (
+        Retriever.search_relevant(
+            query=query,
+            k=k
+        )
     )
 
-    output = []
+    # ============================================================
+    # FORMAT RESULTS
+    # ============================================================
 
-    for doc in results:
+    formatted_results = []
 
-        output.append(
+    for result in results:
+
+        metadata = (
+            result.get(
+                "metadata",
+                {}
+            )
+            or {}
+        )
+
+        formatted_results.append(
             {
-                "page": doc.metadata.get("page"),
-                "content": doc.page_content
+                "score": result.get(
+                    "score"
+                ),
+
+                "original_score": result.get(
+                    "original_score"
+                ),
+
+                "entity_bonus": result.get(
+                    "entity_bonus"
+                ),
+
+                "intent_bonus": result.get(
+                    "intent_bonus"
+                ),
+
+                "page": metadata.get(
+                    "page"
+                ),
+
+                "source": metadata.get(
+                    "source"
+                ),
+
+                "content": result.get(
+                    "content"
+                )
             }
         )
 
+    # ============================================================
+    # RESPONSE
+    # ============================================================
+
     return {
+        "success": True,
         "query": query,
-        "results": output
+        "count": len(formatted_results),
+        "results": formatted_results
     }
