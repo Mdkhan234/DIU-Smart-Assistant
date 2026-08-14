@@ -1,0 +1,60 @@
+services:
+  - type: web
+    name: diu-smart-assistant-api
+    runtime: python
+    plan: free
+
+    buildCommand: pip install -r requirements.txt
+
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+    healthCheckPath: /health
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13
+
+      - key: PROJECT_NAME
+        value: DIU Smart Assistant
+
+      - key: VERSION
+        value: 1.0.0
+
+      - key: DESCRIPTION
+        value: AI-powered University Assistant using RAG
+
+      - key: UPLOAD_DIR
+        value: data/uploads
+
+      - key: CHROMA_DB_PATH
+        value: data/chroma
+
+      - key: MODEL_NAME
+        value: llama3.2:1b
+
+      - key: EMBEDDING_MODEL
+        value: BAAI/bge-small-en-v1.5
+
+      - key: LLM_PROVIDER
+        value: openai
+
+      - key: OPENAI_MODEL
+        value: gpt-5-mini
+
+      - key: OPENAI_API_KEY
+        sync: false
+
+      - key: LOG_LEVEL
+        value: INFO
+
+      - key: TOP_K
+        value: 5
+
+      - key: RELEVANCE_THRESHOLD
+        value: 0.65
+
+      - key: MAX_CONTEXT_CHARS
+        value: 6000
+
+      - key: DEBUG_RETRIEVAL
+        value: "false"
